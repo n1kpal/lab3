@@ -1,0 +1,180 @@
+import itertools
+from dataclasses import dataclass
+from pathlib import Path
+import numpy as np
+import pandas as pd
+import soundfile as sf
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+from scipy import signal
+
+from stage1 import FILTER, SELECTED_IDS, SNR_LEVELS, load_pair, save_wav, snr_db, DATASET_DIR, RESULTS_DIR
+from stage2 import compute_fft_spectrum, DPI
+
+KINDS = ("highpass", "lowpass", "bandpass", "bandstop")
+SWP = {
+    "highpass": {"ord": [2, 4, 6], "cut": [80, 100, 150, 200, 300]},
+    "bandpass": {"ord": [2, 4], "cut": [(300, 3400), (200, 3400)]},
+}
+
+@dataclass
+class Spc:
+    typ: str; ord: int; cut: float | tuple; fsq: int; zph: bool = True
+
+    def __post_init__(self):
+        if self.typ not in KINDS:
+            raise ValueError(f"неизвестный тип фильтра: {self.typ}")
+        if self.typ in ("bandpass", "bandstop"):
+            if not isinstance(self.cut, tuple) or len(self.cut) != 2:
+                raise ValueError("для полосового фильтра нужна пара частот")
+            if not self.cut[0] < self.cut[1]:
+                raise ValueError("нижняя частота должна быть меньше верхней")
+        elif isinstance(self.cut, tuple):
+            raise ValueError("для ФВЧ/ФНЧ нужна одна частота")
+        nyq = self.fsq / 2
+        for c in (self.cut if isinstance(self.cut, tuple) else (self.cut,)):
+            if not (0 < c < nyq):
+                raise ValueError(f"срез {c} Гц вне интервала (0, {nyq})")
+
+    def to_dict(self) -> dict:
+        cut = f"{self.cut[0]:g}-{self.cut[1]:g}" if isinstance(self.cut, tuple) else f"{self.cut:g}"
+        return {"filter_type": self.typ, "order": self.ord, "cutoff_hz": cut, "zero_phase": self.zph}
+
+def dsn(s: Spc) -> np.ndarray:
+    wn = list(s.cut) if isinstance(s.cut, tuple) else s.cut
+    return signal.butter(s.ord, wn, btype=s.typ, output="sos", fs=s.fsq)
+
+def apl(x: np.ndarray, sos: np.ndarray, zph: bool = True) -> np.ndarray:
+    x = np.asarray(x, dtype=np.float64)
+    y = signal.sosfiltfilt(sos, x) if zph else signal.sosfilt(sos, x)
+    if len(y) != len(x):
+        raise RuntimeError("фильтр изменил длину сигнала")
+    return y
+
+def mk_cnd(typ: str, ordr: list, cutf: list, fsq: int) -> list[Spc]:
+    return [Spc(typ, int(o), c, fsq) for o, c in itertools.product(ordr, cutf)]
+
+def swp(sps: list[Spc], trn: list[str], ddr: Path) -> pd.DataFrame:
+    if set(trn) & set(SELECTED_IDS):
+        raise ValueError("запрещено подбирать на отчётных фразах")
+    cac = {(s, n): load_pair(s, n, dataset_dir=ddr) for s in trn for n in SNR_LEVELS}
+    rws = []
+    for spe in sps:
+        sos = dsn(spe)
+        dlt = np.array([
+            snr_db(p.clean, apl(p.noisy, sos, spe.zph)) - snr_db(p.clean, p.noisy)
+            for p in cac.values()
+        ])
+        dlt = dlt[np.isfinite(dlt)]
+        rws.append({
+            **spe.to_dict(),
+            "n": len(dlt),
+            "mean": float(np.mean(dlt)) if len(dlt) else 0.0,
+            "std": float(np.std(dlt, ddof=1)) if len(dlt) > 1 else 0.0,
+            "pos": float(np.mean(dlt > 0)) if len(dlt) else 0.0,
+        })
+    return pd.DataFrame(rws)
+
+def prc(rec: list, spe: Spc, ddr: Path, odr: Path) -> pd.DataFrame:
+    sos = dsn(spe)
+    odr.mkdir(parents=True, exist_ok=True)
+    rws = []
+    for spi, snr in rec:
+        par = load_pair(spi, snr, dataset_dir=ddr)
+        if par.fs != spe.fsq:
+            raise ValueError(f"{spi}: fs={par.fs} != {spe.fsq}")
+        y = apl(par.noisy, sos, spe.zph)
+        out = odr / f"{spi}_airport_{snr}dB_filtered.wav"
+        met = save_wav(out, y, par.fs, dataset_dir=ddr)
+        if sf.info(out).frames != len(par.noisy):
+            raise RuntimeError(f"{out.name}: длина не совпала")
+        rws.append({
+            "sp_id": spi, "snr_nominal_db": snr,
+            "in_path": str(ddr), "out_path": str(out),
+            "n_clipped": met["n_clipped"], "peak": met["peak"],
+        })
+    return pd.DataFrame(rws)
+
+def fig_resp(sos: np.ndarray, fsq: int, out: Path, zph: bool, tit: str) -> Path:
+    frq, h = signal.sosfreqz(sos, worN=4096, fs=fsq)
+    hdb = 20 * np.log10(np.maximum(np.abs(h), 1e-12)) * (2 if zph else 1)
+    fgr, ax = plt.subplots(figsize=(8, 4))
+    ax.plot(frq, hdb)
+    ax.set(
+        xlabel="Частота, Гц", ylabel="Усиление, дБ",
+        xlim=(0, fsq / 2), ylim=(-80, 5),
+        title=tit + "\n(sosfiltfilt: АЧХ = |H|², −3 дБ у H → −6 дБ)",
+    )
+    ax.grid(alpha=0.3)
+    fgr.tight_layout()
+    fgr.savefig(out, dpi=150)
+    plt.close(fgr)
+    return out
+
+def fig_spec(sos: np.ndarray, fsq: int, spi: str, ddr: Path, out: Path, zph: bool) -> Path:
+    fgr, ax = plt.subplots(figsize=(9, 5))
+    par0 = load_pair(spi, SNR_LEVELS[0], dataset_dir=ddr)
+    f_sp, sp_db = compute_fft_spectrum(par0.clean, fsq)
+    ax.plot(f_sp, sp_db, "k", lw=1.5, label="речь (clean)")
+
+    for snr in SNR_LEVELS:
+        par = load_pair(spi, snr, dataset_dir=ddr)
+        f_n, n_db = compute_fft_spectrum(par.noisy - par.clean, fsq)
+        ax.plot(f_n, n_db, alpha=0.7, label=f"шум {snr} дБ")
+
+    ax.set(xlabel="Частота, Гц", ylabel="Спектр (дБ отн. полной шкалы)", xlim=(0, fsq / 2))
+    ax.grid(alpha=0.3)
+
+    ax2 = ax.twinx()
+    frq, hdb = signal.sosfreqz(sos, worN=4096, fs=fsq)
+    hdb = 20 * np.log10(np.maximum(np.abs(hdb), 1e-12)) * (2 if zph else 1)
+    ax2.plot(frq, hdb, "r--", lw=2, label="АЧХ")
+    ax2.set(ylabel="Усиление, дБ", ylim=(-80, 5))
+
+    h1, l1 = ax.get_legend_handles_labels()
+    h2, l2 = ax2.get_legend_handles_labels()
+    ax.legend(h1 + h2, l1 + l2, loc="upper right", fontsize=8)
+    fgr.tight_layout()
+    fgr.savefig(out, dpi=150)
+    plt.close(fgr)
+    return out
+
+def run_stage4(dataset_dir: Path = DATASET_DIR, results_dir: Path = RESULTS_DIR) -> dict[str, Path]:
+    ddr, rdr = Path(dataset_dir), Path(results_dir)
+    tab, fig, aud = rdr / "tables", rdr / "figures", rdr / "audio_processed"
+    for dd in (tab, fig, aud):
+        dd.mkdir(parents=True, exist_ok=True)
+
+    fsq = sf.info(next((ddr / "clean").glob("sp*.wav"))).samplerate
+    spe = Spc(
+        FILTER["kind"], int(FILTER["order"]),
+        FILTER["cutoff_hz"], fsq,
+        bool(FILTER.get("zero_phase", True)),
+    )
+    print(f"[Этап 4] фильтр: {spe.to_dict()}")
+
+    rec = [(spi, snr) for spi in SELECTED_IDS for snr in SNR_LEVELS]
+    prc_df = prc(rec, spe, ddr, aud)
+    prc_df.to_csv(tab / "processed_files.csv", index=False, encoding="utf-8-sig")
+
+    if spe.typ not in SWP:
+        raise ValueError(f"нет сетки параметров для {spe.typ}")
+    trn = [f"sp{i:02d}" for i in range(1, 31) if f"sp{i:02d}" not in SELECTED_IDS]
+    swp_df = swp(mk_cnd(spe.typ, SWP[spe.typ]["ord"], SWP[spe.typ]["cut"], fsq), trn, ddr)
+    swp_df.to_csv(tab / "sweep_results.csv", index=False, encoding="utf-8-sig")
+
+    sos = dsn(spe)
+    tit = f"АЧХ: {spe.typ}, порядок {spe.ord}, срез {spe.to_dict()['cutoff_hz']} Гц"
+    pth = {
+        "processed": tab / "processed_files.csv",
+        "sweep": tab / "sweep_results.csv",
+        "resp": fig_resp(sos, fsq, fig / "stage4_filter_response.png", spe.zph, tit),
+        "audio": aud,
+    }
+    for spi in SELECTED_IDS:
+        pth[f"spec_{spi}"] = fig_spec(
+            sos, fsq, spi, ddr,
+            fig / f"stage4_{spi}_filter_vs_spectra.png", spe.zph,
+        )
+    return pth
