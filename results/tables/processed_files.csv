@@ -1,0 +1,13 @@
+﻿sp_id,snr_nominal_db,in_path,out_path,n_clipped,peak
+sp03,0,dataset,results\audio_processed\sp03_airport_0dB_filtered.wav,0,0.5107604470362288
+sp03,5,dataset,results\audio_processed\sp03_airport_5dB_filtered.wav,0,0.46823436308589383
+sp03,10,dataset,results\audio_processed\sp03_airport_10dB_filtered.wav,0,0.4543345720980957
+sp03,15,dataset,results\audio_processed\sp03_airport_15dB_filtered.wav,0,0.4424693499717675
+sp14,0,dataset,results\audio_processed\sp14_airport_0dB_filtered.wav,0,0.6385431167855635
+sp14,5,dataset,results\audio_processed\sp14_airport_5dB_filtered.wav,0,0.6491926573680206
+sp14,10,dataset,results\audio_processed\sp14_airport_10dB_filtered.wav,0,0.6138356752425808
+sp14,15,dataset,results\audio_processed\sp14_airport_15dB_filtered.wav,0,0.6220376791940996
+sp26,0,dataset,results\audio_processed\sp26_airport_0dB_filtered.wav,0,0.45401547871962766
+sp26,5,dataset,results\audio_processed\sp26_airport_5dB_filtered.wav,0,0.474253247579749
+sp26,10,dataset,results\audio_processed\sp26_airport_10dB_filtered.wav,0,0.4478686683635641
+sp26,15,dataset,results\audio_processed\sp26_airport_15dB_filtered.wav,0,0.45470688061740955

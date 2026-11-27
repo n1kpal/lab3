@@ -1,6 +1,5 @@
 dataset/
 .venv/
-venv/
 __pycache__/
 *.part
 Thumbs.db
