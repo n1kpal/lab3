@@ -12,9 +12,9 @@
 ## 2. Методика
 
 ### Формулы
-- **RMS:** \(\sqrt{\frac{1}{N}\sum x_i^2}\)
-- **SNR:** \(10 \lg \frac{\sum clean_i^2}{\sum (clean_i - test_i)^2}\)
-- **ΔSNR:** \(SNR_{после} - SNR_{до}\)
+- **RMS:** `sqrt( (1/N) * Σ(x_i^2) )`
+- **SNR:** `10 * log10( Σ(clean_i^2) / Σ(clean_i - test_i)^2 )`
+- **ΔSNR:** `SNR_после - SNR_до`
 
 ### Параметры выбранного фильтра
 - Тип: highpass (фильтр верхних частот)
