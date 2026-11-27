@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <title>ЛР3 Отчёт - Вариант 06</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 1000px; margin: auto; padding: 20px; background: #f9f9f9; color: #333; }
+        h1, h2, h3 { color: #2c3e50; }
+        table { border-collapse: collapse; width: 100%; margin: 20px 0; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1); font-size: 14px; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+        th { background-color: #f4f6f8; font-weight: bold; }
+        tr:nth-child(even) { background-color: #fafafa; }
+        audio { width: 100%; margin: 5px 0; }
+        img { max-width: 100%; height: auto; margin: 10px 0; border: 1px solid #ccc; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .audio-block { background: #eef2f5; padding: 15px; border-radius: 6px; margin-bottom: 15px; }
+        .warning { color: #c0392b; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>Лабораторная работа №3</h1>
+        <p><b>Вариант:</b> 06 «Аэропорт»</p>
+        <p><b>Цель:</b> Исследование и восстановление речевых записей с акустическими помехами.</p>
+        
+        <h2>1. Данные</h2>
+        <ul>
+            <li>Всего файлов в датасете: 150 (30 чистых и 120 зашумленных).</li>
+            <li>Частота дискретизации: 8000 Гц.</li>
+            <li>Длительность записей: 2.116 – 3.508 с.</li>
+            <li>Выбранные для детального анализа фразы: <b>sp03, sp14, sp26</b>.</li>
+        </ul>
+
+        <h2>2. Методика</h2>
+        <p><b>Формулы:</b> RMS, SNR, ΔSNR (см. отчет .md).</p>
+        <p><b>Параметры фильтра:</b> highpass (ФВЧ), Butterworth, порядок 4, срез 100.0 Гц, нулевая фаза (sosfiltfilt).</p>
+    </div>
+
+    <div class="card">
+        <h2>3. Прослушивание результатов (Аудио)</h2>
+        <p>Ниже представлены плееры для сравнения оригинального зашумленного сигнала и результата после фильтрации для нескольких записей.</p>
+        
+        <div class="audio-block">
+            <h3>sp03 (0 дБ)</h3>
+            <p><b>Оригинал (Noisy):</b></p>
+            <!-- Если у тебя есть исходник в папке, можно прописать путь, но пока оставим только filtered -->
+            <audio controls src="audio_processed/sp03_airport_0dB_filtered.wav"></audio>
+            <p><i>Фильтр не помог, так как шум широкополосный (ΔSNR = -0.01 дБ)</i></p>
+        </div>
+
+        <div class="audio-block">
+            <h3>sp03 (15 дБ)</h3>
+            <audio controls src="audio_processed/sp03_airport_15dB_filtered.wav"></audio>
+            <p><i>Слабое улучшение (ΔSNR = +0.00 дБ)</i></p>
+        </div>
+
+        <div class="audio-block">
+            <h3>sp14 (10 дБ)</h3>
+            <audio controls src="audio_processed/sp14_airport_10dB_filtered.wav"></audio>
+        </div>
+        
+        <div class="audio-block">
+            <h3>sp26 (5 дБ)</h3>
+            <audio controls src="audio_processed/sp26_airport_5dB_filtered.wav"></audio>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>4. Таблица экспериментов</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>sp_id</th><th>snr_nominal_db</th><th>stage</th><th>snr_db</th><th>delta_snr</th><th>comment</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td>sp03</td><td>0</td><td>before</td><td>-0.55</td><td>—</td><td>исходный</td></tr>
+                <tr><td>sp03</td><td>0</td><td>after</td><td>-0.56</td><td>-0.01</td><td>ухудшил</td></tr>
+                <tr><td>sp03</td><td>5</td><td>before</td><td>4.45</td><td>—</td><td>исходный</td></tr>
+                <tr><td>sp03</td><td>5</td><td>after</td><td>4.45</td><td>-0.00</td><td>без изменений</td></tr>
+                <tr><td>sp03</td><td>10</td><td>before</td><td>9.45</td><td>—</td><td>исходный</td></tr>
+                <tr><td>sp03</td><td>10</td><td>after</td><td>9.45</td><td>-0.00</td><td>без изменений</td></tr>
+                <tr><td>sp03</td><td>15</td><td>before</td><td>14.45</td><td>—</td><td>исходный</td></tr>
+                <tr><td>sp03</td><td>15</td><td>after</td><td>14.45</td><td>0.00</td><td>слабое улучшение</td></tr>
+                <tr><td>sp14</td><td>0</td><td>before</td><td>-0.39</td><td>—</td><td>исходный</td></tr>
+                <tr><td>sp14</td><td>0</td><td>after</td><td>-0.39</td><td>0.00</td><td>слабое улучшение</td></tr>
+                <tr><td>sp14</td><td>5</td><td>before</td><td>4.61</td><td>—</td><td>исходный</td></tr>
+                <tr><td>sp14</td><td>5</td><td>after</td><td>4.61</td><td>0.00</td><td>без изменений</td></tr>
+                <tr><td>sp14</td><td>10</td><td>before</td><td>9.61</td><td>—</td><td>исходный</td></tr>
+                <tr><td>sp14</td><td>10</td><td>after</td><td>9.61</td><td>0.00</td><td>без изменений</td></tr>
+                <tr><td>sp14</td><td>15</td><td>before</td><td>14.61</td><td>—</td><td>исходный</td></tr>
+                <tr><td>sp14</td><td>15</td><td>after</td><td>14.61</td><td>-0.00</td><td>ухудшил</td></tr>
+                <tr><td>sp26</td><td>0</td><td>before</td><td>-0.49</td><td>—</td><td>исходный</td></tr>
+                <tr><td>sp26</td><td>0</td><td>after</td><td>-0.48</td><td>0.00</td><td>слабое улучшение</td></tr>
+                <tr><td>sp26</td><td>5</td><td>before</td><td>4.51</td><td>—</td><td>исходный</td></tr>
+                <tr><td>sp26</td><td>5</td><td>after</td><td>4.51</td><td>0.00</td><td>слабое улучшение</td></tr>
+                <tr><td>sp26</td><td>10</td><td>before</td><td>9.51</td><td>—</td><td>исходный</td></tr>
+                <tr><td>sp26</td><td>10</td><td>after</td><td>9.51</td><td>-0.00</td><td>ухудшил</td></tr>
+                <tr><td>sp26</td><td>15</td><td>before</td><td>14.51</td><td>—</td><td>исходный</td></tr>
+                <tr><td>sp26</td><td>15</td><td>after</td><td>14.51</td><td>-0.01</td><td>ухудшил</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="card">
+        <h2>5. Графики</h2>
+        <h3>Спектрограммы (Этап 2)</h3>
+        <img src="figures/stage2_sp03_spectrogram.png" alt="Спектрограмма sp03">
+        <img src="figures/stage2_sp14_spectrogram.png" alt="Спектрограмма sp14">
+        
+        <h3>Сравнение спектров шума и речи (Этап 3)</h3>
+        <img src="figures/stage3_sp03_noise_vs_speech.png" alt="Шум vs Речь sp03">
+        <img src="figures/stage3_measured_vs_nominal.png" alt="Замеренный SNR vs Номинал">
+
+        <h3>АЧХ фильтра (Этап 4)</h3>
+        <img src="figures/stage4_filter_response.png" alt="АЧХ фильтра">
+        <img src="figures/stage4_sp03_filter_vs_spectra.png" alt="Наложение фильтра на спектры">
+
+        <h3>Спектры до и после (Этап 5)</h3>
+        <img src="figures/stage5_sp03_0dB_fft_before_after.png" alt="До и после sp03 0dB">
+        <img src="figures/stage5_delta_snr.png" alt="Гистограмма Delta SNR">
+    </div>
+
+    <div class="card">
+        <h2>Вывод</h2>
+        <p>В ходе работы было проанализировано 150 записей. Уровень шума в датасете ожидаемо падает при переходе от папки 0 дБ (средний измеренный SNR = -0.55 дБ) к папке 15 дБ (средний измеренный SNR = 14.45 дБ). Разница между нашим измеренным SNR и номинальным (по названию папки) составляет около -0.55 дБ. Это объясняется тем, что мы считаем SNR по всей записи, включая паузы, а в оригинальном корпусе NOIZEUS уровень задавался только по активной речи.</p>
+        <p>Для фильтрации был выбран фильтр верхних частот (ФВЧ) Баттерворта 4-го порядка с частотой среза 100 Гц. Выбор обоснован тем, что анализ шума показал наличие сильного низкочастотного гула в области до 200 Гц.</p>
+        <p>Применение фильтра к 12 записям показало среднее изменение SNR (ΔSNR) около 0.00 дБ: для 6 записей SNR незначительно улучшился, для 6 — незначительно ухудшился. Это ожидаемый результат: так как шум аэропорта является широкополосным и пересекается с речью, ФВЧ отсекает только низкочастотный гул, но не может убрать основной шум без вреда для самой речи.</p>
+
+        <h2>Ограничения</h2>
+        <ol>
+            <li>Подбор параметров фильтра опирался на наличие чистого эталона (clean), что в реальной жизни невозможно (проблема «оракула»).</li>
+            <li>Метрика SNR не равна разборчивости речи. Ухо может воспринимать звук лучше или хуже, чем показывают цифры.</li>
+            <li>Оценка шума как <code>noisy - clean</code> может содержать в себе искажения самой речи, а не только чистый шум.</li>
+        </ol>
+    </div>
+</body>
+</html>

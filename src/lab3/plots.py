@@ -12,12 +12,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import soundfile as sf
 from scipy import signal as sps
+from lab3 import config
 
 # Константы
-
-NOISE_TYPE = "airport"
-SNR_LEVELS = (0, 5, 10, 15)                 # дБ, номинальные
-SELECTED_IDS = ("sp03", "sp14", "sp26")
 
 Signal = np.ndarray
 
@@ -29,10 +26,10 @@ FFT_RANGE_DB = 100.0
 EPS = 1e-12
 
 # Ключи словаря сигналов строго в таком порядке
-KEYS = ("clean",) + tuple(f"{s}dB" for s in SNR_LEVELS)
+KEYS = ("clean",) + tuple(f"{s}dB" for s in config.SNR_LEVELS)
 PANEL_TITLES = {"clean": "Чистый эталон"}
 PANEL_TITLES.update(
-    {f"{s}dB": f"Шум «{NOISE_TYPE}», SNR {s} дБ (номинал)" for s in SNR_LEVELS}
+    {f"{s}dB": f"Шум «{config.NOISE_TYPE}», SNR {s} дБ (номинал)" for s in config.SNR_LEVELS}
 )
 
 
@@ -48,7 +45,7 @@ def _read_mono(path: Path) -> tuple[Signal, int]:
 def _load_pair(sp_id: str, snr_nominal_db: int, dataset_dir: Path) -> tuple[Signal, Signal, int]:
     #Возвращает (clean, noisy, fs).
     clean_path = dataset_dir / "clean" / f"{sp_id}.wav"
-    folder = dataset_dir / "noisy" / NOISE_TYPE / f"{snr_nominal_db}dB"
+    folder = dataset_dir / "noisy" / config.NOISE_TYPE / f"{snr_nominal_db}dB"
     found = sorted(folder.glob(f"*{sp_id}*.wav"))
     if not clean_path.is_file():
         raise FileNotFoundError(f"Нет файла: {clean_path}")
@@ -226,7 +223,7 @@ def make_stage2_figures(
     for sp_id in selected_ids:
         signals: dict[str, Signal] = {}
         fs_ref = None
-        for snr in SNR_LEVELS:
+        for snr in config.SNR_LEVELS:
             clean, noisy, fs = _load_pair(sp_id, snr, dataset_dir)
             if fs_ref is None:
                 fs_ref = fs
@@ -238,7 +235,7 @@ def make_stage2_figures(
             signals[f"{snr}dB"] = noisy
 
         scales = compute_common_scales(signals, fs_ref)
-        title = f"Фраза {sp_id}, шум «{NOISE_TYPE}»"
+        title = f"Фраза {sp_id}, шум «{config.NOISE_TYPE}»"
         paths.append(plot_waveforms(signals, fs_ref, scales, title, out_dir / f"stage2_{sp_id}_waveform.png"))
         paths.append(plot_fft(signals, fs_ref, scales, title, out_dir / f"stage2_{sp_id}_fft.png"))
         paths.append(plot_spectrograms(signals, fs_ref, scales, title, out_dir / f"stage2_{sp_id}_spectrogram.png"))
@@ -247,19 +244,21 @@ def make_stage2_figures(
 
 def run_stage2(dataset_dir: Path, results_dir: Path) -> dict[str, Path]:
     #Единый вход этапа 2. Читает dataset_dir, пишет в results_dir/figures.
-    paths = make_stage2_figures(SELECTED_IDS, Path(dataset_dir), Path(results_dir) / "figures")
+    # ИЗМЕНЕНО: используем config.SELECTED_IDS
+    paths = make_stage2_figures(config.SELECTED_IDS, Path(dataset_dir), Path(results_dir) / "figures")
     return {p.stem: p for p in paths}
 
 #Запуск
 def _main() -> int:
-    global SELECTED_IDS
+    # ИЗМЕНЕНО: убран global SELECTED_IDS
     parser = argparse.ArgumentParser(description="Этап 2: waveform, FFT, спектрограммы")
     parser.add_argument("--dataset", type=Path, default=Path("dataset"))
     parser.add_argument("--results", type=Path, default=Path("results"))
     parser.add_argument("--selected", type=str, default=None, help="например: sp03,sp14,sp26")
     args = parser.parse_args()
     if args.selected:
-        SELECTED_IDS = tuple(s.strip() for s in args.selected.split(",") if s.strip())
+        # ИЗМЕНЕНО: меняем config.SELECTED_IDS
+        config.SELECTED_IDS = tuple(s.strip() for s in args.selected.split(",") if s.strip())
     try:
         result = run_stage2(args.dataset, args.results)
     except (FileNotFoundError, ValueError) as exc:

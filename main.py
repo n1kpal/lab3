@@ -80,7 +80,7 @@ if __name__ == "__main__":
 
     if n_clean != 30 or n_noisy != 120:
         print(f"Датасет неполон: clean={n_clean}/30, noisy={n_noisy}/120", file=sys.stderr)
-        print("Запустите: py tools/download_dataset.py --out dataset", file=sys.stderr)
+        print(f"Запустите: py tools/download_dataset.py --out {args.dataset}", file=sys.stderr)
         sys.exit(2)
 
     run_pipeline(args.dataset, args.results, stages)
